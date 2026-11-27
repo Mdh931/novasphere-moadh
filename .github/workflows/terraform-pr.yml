@@ -68,3 +68,17 @@ jobs:
               issue_number: context.issue.number,
               body: `### Plan ${process.env.PLAN_ENV}\n\`\`\`\n${plan}\n\`\`\``
             });
+
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan checkov (projet et module)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          download_external_modules: true
+          quiet: true
+          soft_fail: true
