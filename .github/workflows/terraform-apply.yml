@@ -1,0 +1,99 @@
+name: terraform-apply
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  AWS_REGION: us-east-1
+  TF_VAR_owner: moadh
+
+jobs:
+  apply-dev:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: envs/dev
+    env:
+      TF_VAR_environment: dev
+      TF_VAR_vpc_cidr: 10.10.0.0/16
+      TF_VAR_app_secret: ${{ secrets.APP_SECRET_DEV }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - run: terraform plan -input=false -no-color -out=tfplan
+      - run: terraform apply -input=false -no-color tfplan
+
+  apply-prod:
+    needs: apply-dev
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: envs/prod
+    env:
+      TF_VAR_environment: prod
+      TF_VAR_vpc_cidr: 10.20.0.0/16
+      TF_VAR_app_secret: ${{ secrets.APP_SECRET_PROD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - run: terraform plan -input=false -no-color -out=tfplan
+      - run: terraform apply -input=false -no-color tfplan
+
+  drift:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: dev
+            cidr: 10.10.0.0/16
+          - env: prod
+            cidr: 10.20.0.0/16
+    defaults:
+      run:
+        working-directory: envs/${{ matrix.env }}
+    env:
+      TF_VAR_environment: ${{ matrix.env }}
+      TF_VAR_vpc_cidr: ${{ matrix.cidr }}
+      TF_VAR_app_secret: ${{ matrix.env == 'dev' && secrets.APP_SECRET_DEV || secrets.APP_SECRET_PROD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - name: Détection de dérive
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode
+          code=$?
+          if [ "$code" -eq 2 ]; then
+            echo "::error::Dérive détectée sur ${{ matrix.env }}"
+            exit 1
+          fi
+          exit "$code"

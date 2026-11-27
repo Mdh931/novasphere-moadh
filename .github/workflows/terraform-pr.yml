@@ -1,0 +1,70 @@
+name: terraform-pr
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: dev
+            cidr: 10.10.0.0/16
+          - env: prod
+            cidr: 10.20.0.0/16
+    defaults:
+      run:
+        working-directory: envs/${{ matrix.env }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: us-east-1
+      TF_VAR_owner: moadh
+      TF_VAR_environment: ${{ matrix.env }}
+      TF_VAR_vpc_cidr: ${{ matrix.cidr }}
+      TF_VAR_app_secret: ${{ matrix.env == 'dev' && secrets.APP_SECRET_DEV || secrets.APP_SECRET_PROD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+          terraform_wrapper: false
+
+      - name: fmt
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: init
+        run: terraform init -input=false
+
+      - name: validate
+        run: terraform validate -no-color
+
+      - name: plan
+        run: |
+          terraform plan -input=false -no-color -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Commentaire du plan sur la PR
+        uses: actions/github-script@v7
+        env:
+          PLAN_ENV: ${{ matrix.env }}
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync(`envs/${process.env.PLAN_ENV}/plan.txt`, 'utf8').slice(-60000);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Plan ${process.env.PLAN_ENV}\n\`\`\`\n${plan}\n\`\`\``
+            });
