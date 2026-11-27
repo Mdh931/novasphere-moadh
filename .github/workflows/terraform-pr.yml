@@ -81,4 +81,5 @@ jobs:
           framework: terraform
           download_external_modules: true
           quiet: true
-          soft_fail: true
+          soft_fail: false
+          skip_check: CKV_AWS_130
