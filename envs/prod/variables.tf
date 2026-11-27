@@ -27,7 +27,7 @@ variable "instance_type" {
 variable "app_message" {
   description = "Titre affiché sur la page d'accueil"
   type        = string
-  default     = "Bienvenue sur NovaSphere"
+  default     = "NovaSphere v2"
 }
 
 variable "app_secret" {
@@ -40,5 +40,5 @@ variable "app_secret" {
 variable "app_secret_version" {
   description = "À incrémenter pour réécrire le secret dans Parameter Store"
   type        = number
-  default     = 1
+  default     = 2
 }
