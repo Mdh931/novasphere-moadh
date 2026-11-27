@@ -9,7 +9,7 @@ data "aws_ami" "al2023" {
 }
 
 module "webstack" {
-  source = "git::https://github.com/Mdh931/terraform-aws-webstack-moadh.git?ref=v1.1.0"
+  source = "git::https://github.com/Mdh931/terraform-aws-webstack-moadh.git?ref=v1.2.1"
 
   project               = "novasphere"
   environment           = var.environment
