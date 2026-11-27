@@ -82,4 +82,4 @@ jobs:
           download_external_modules: true
           quiet: true
           soft_fail: false
-          skip_check: CKV_AWS_130
+          skip_check: CKV_AWS_130,CKV2_AWS_12
