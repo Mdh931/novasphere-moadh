@@ -9,7 +9,8 @@ data "aws_ami" "al2023" {
 }
 
 module "webstack" {
-  source = "git::https://github.com/Mdh931/terraform-aws-webstack-moadh.git?ref=v1.2.1"
+  #checkov:skip=CKV_TF_1:le cahier des charges impose un tag vX.Y.Z, jamais modifie apres publication
+  source = "git::https://github.com/Mdh931/terraform-aws-webstack-moadh.git?ref=v1.3.0"
 
   project               = "novasphere"
   environment           = var.environment
